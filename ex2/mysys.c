@@ -29,12 +29,16 @@ void mysys(char* command)
         argv[i] = NULL;
         // execute command
         int execFlag = execvp(argv[0], argv);
+        // free unused memory
+        for (int j = 0; j < i; j++)
+            free(argv[j]);
         if (execFlag < 0) {
-            printf("execute %s fail\n", argv[0]);
+            printf("Execute command [%s] fail\n", commandStr);
+            exit(EXIT_FAILURE);
         }
     }
     wait(NULL);
-    printf("back to parent");
+    // printf("back to parent");
 }
 
 int main()
