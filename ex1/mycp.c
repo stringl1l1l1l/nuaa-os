@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
         count_read = read(fd_s, buffer, sizeof(buffer));
         if (count_read == 0)
             break;
-        write(fd_t, buffer, count_read);
+        write(fd_t, buffer, count_read * sizeof(char));
     }
     if (count_read == -1) {
         puts("Fail to read file.");
