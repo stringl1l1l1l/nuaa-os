@@ -7,22 +7,29 @@
 #define BUF_SIZE 1024
 int main(int argc, char* argv[])
 {
-    if (argc != 2)
-        puts("Illegal command.");
+    char buffer[BUF_SIZE] = { 0 };
     char* filePath = argv[1];
-    int file = open(filePath, O_RDONLY);
-    if (file == -1)
-        printf("%s: %s: No such file or directory.", argv[0], argv[1]);
-    else {
-        char* buffer = (char*)malloc(BUF_SIZE);
-        int flag = read(file, buffer, BUF_SIZE);
-        while (flag > 0) {
-            fputs(buffer, stdout);
-            flag = read(file, buffer, BUF_SIZE);
-        }
-        if (flag == -1)
-            puts("Fail to read file.");
+    int count = 0;
+    int fd = 0;
+
+    if (argc != 2) {
+        puts("Illegal command arguments");
+        exit(EXIT_FAILURE);
     }
-    close(file);
+
+    fd = open(filePath, O_RDONLY);
+    if (fd < 0) {
+        perror(argv[1]);
+        exit(EXIT_FAILURE);
+    }
+
+    while (1) {
+        count = read(fd, buffer, BUF_SIZE);
+        if (count == 0)
+            break;
+        write(1, buffer, count);
+    }
+
+    close(fd);
     return 0;
 }
