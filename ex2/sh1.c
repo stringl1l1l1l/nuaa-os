@@ -21,10 +21,15 @@ int sh1()
         write(STD_OUT, str, sizeof(str));
 
         char line[MAX_LINE_LEN];
+        char tmp[MAX_LINE_LEN];
         int c;
         c = read(STD_IN, line, sizeof(line)); // 0 是标准输入
         line[c - 1] = 0;
+        // 判断命令是否为空
+        if (strlen(line) == 0)
+            continue;
 
+        strcpy(tmp, line);
         char* head = strtok(line, " ");
         if (strcmp(head, "pwd") == 0) {
             char* wd = pwd();
@@ -42,7 +47,7 @@ int sh1()
         } else if (strcmp(head, "exit") == 0)
             exit(0);
         else
-            mysys(line);
+            mysys(tmp);
     }
     return 0;
 }
@@ -63,35 +68,32 @@ void mysys(char* command)
     const char* delimiter = " ";
     char* argv[MAX_STR_LEN];
     char commandStr[MAX_STR_LEN];
-
+    // 复制一份命令字符串
     strcpy(commandStr, command);
-    printf("%s\n", commandStr);
 
     pid_t pid = fork();
     if (pid == 0) {
         // printf("enter into child process\n");
-        // splite command string
         int i = 0;
         char* arg = strtok(commandStr, delimiter);
+        // 将输入的命令字符串分割
         while (arg != NULL) {
-            // printf("%s\n", arg);
-            argv[i] = malloc(MAX_STR_LEN * sizeof(char));
-            strcpy(argv[i++], arg);
+            argv[i++] = arg;
             arg = strtok(NULL, delimiter);
         }
         argv[i] = NULL;
-        // execute command
-        int execFlag = execvp(argv[0], argv);
-        // free unused memory
-        for (int j = 0; j < i; j++)
-            free(argv[j]);
+        // 执行命令
+        int execFlag = execvp(argv[0], (char* const*)argv);
+
         if (execFlag < 0) {
-            printf("Execute command [%s] fail\n", commandStr);
+            perror(commandStr);
             exit(EXIT_FAILURE);
         }
+        // 释放内存
+        for (int j = 0; argv[j] != NULL; j++)
+            free(argv[j]);
     }
     wait(NULL);
-    // printf("back to parent");
 }
 
 int main()
