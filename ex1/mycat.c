@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 512
 int main(int argc, char* argv[])
 {
     char buffer[BUF_SIZE] = { 0 };
@@ -24,10 +24,10 @@ int main(int argc, char* argv[])
     }
 
     while (1) {
-        count = read(fd, buffer, BUF_SIZE);
+        count = read(fd, buffer, sizeof(buffer));
         if (count == 0)
             break;
-        write(1, buffer, count);
+        write(1, buffer, count * sizeof(char));
     }
 
     close(fd);
