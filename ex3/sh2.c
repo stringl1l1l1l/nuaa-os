@@ -19,8 +19,8 @@
 #define RDT_REWRT 3
 
 void sh2();
-char* pwd();
-void mysys(char* commmad[]);
+char *pwd();
+void mysys(char *commmad[]);
 
 int new_stdin_fd = STD_IN;
 int new_stdout_fd = STD_OUT;
@@ -32,7 +32,7 @@ int new_stdout_fd = STD_OUT;
  * @param arg   带有重定向符号的字符串, 如">log.txt"
  * @return 返回重定向的文件描述符，没有重定向则返回-1
  */
-int redirect(char* arg)
+int redirect(char *arg)
 {
     int type = -1;
     int oldfd = -1;
@@ -97,7 +97,7 @@ int redirect(char* arg)
  * @param delimiter 分隔字符串
  * @return 返回分割出字符串的个数，不包括NULL
  */
-int split(char* res[], const char* target, const char* delimiter)
+int split(char *res[], const char *target, const char *delimiter)
 {
     int len = strlen(target);
     if (len == 0)
@@ -110,7 +110,7 @@ int split(char* res[], const char* target, const char* delimiter)
     strcpy(tmp, target);
 
     // 将输入的命令字符串分割
-    char* arg = strtok(tmp, delimiter);
+    char *arg = strtok(tmp, delimiter);
     while (arg != NULL) {
         strcpy(res[i++], arg);
         // 为什么不能直接指针赋值？因为strtok返回的是指向tmp中字符的指针，而tmp位于栈帧中，生命周期仅限于本函数，
@@ -129,7 +129,7 @@ int split(char* res[], const char* target, const char* delimiter)
 void sh2()
 {
     char line[MAX_LINE_LEN];
-    char* argv[MAX_STR_LEN];
+    char *argv[MAX_STR_LEN];
     int cnt;
     int argc = 0;
     while (1) {
@@ -157,7 +157,7 @@ void sh2()
 
         // 根据输入的命令类型执行不同的操作
         if (strcmp(argv[0], "pwd") == 0) {
-            char* wd = pwd();
+            char *wd = pwd();
             // 释放pwd malloc的内存
             if (wd != NULL) {
                 puts(wd);
@@ -166,7 +166,7 @@ void sh2()
         } else if (strcmp(argv[0], "cd") == 0) {
             int res = chdir(argv[1]);
             if (res == 0) {
-                char* wd = pwd();
+                char *wd = pwd();
                 printf("Change into directory [%s].\n", wd);
                 // 释放pwd malloc的内存
                 if (wd != NULL) {
@@ -201,10 +201,10 @@ void sh2()
  * @return  char* 返回一个malloc出的字符串，表明当前目录，如果程序出错返回NULL，
  *          为了防止内存泄漏要记得free
  */
-char* pwd()
+char *pwd()
 {
-    char* buffer = malloc(PATH_MAX * sizeof(char));
-    char* res = getcwd(buffer, PATH_MAX);
+    char *buffer = malloc(PATH_MAX * sizeof(char));
+    char *res = getcwd(buffer, PATH_MAX);
     if (res == NULL) {
         printf("Fail to get current work directory.\n");
         return NULL;
@@ -217,7 +217,7 @@ char* pwd()
  *
  * @param argv 待执行的命令字符串数组
  */
-void mysys(char* argv[])
+void mysys(char *argv[])
 {
     pid_t pid = fork();
     if (pid == 0) {
