@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -19,8 +20,8 @@
 #define RDT_REWRT 3
 
 void sh2();
-char* pwd();
-void mysys(char* commmad[]);
+char *pwd();
+void mysys(char *commmad[]);
 
 int new_stdin_fd = STD_IN;
 int new_stdout_fd = STD_OUT;
@@ -28,11 +29,10 @@ int new_stdout_fd = STD_OUT;
 /**
  * @brief 根据传入的参数执行各种重定向
  *
- * @param oldfd 待重定向的文件描述符
  * @param arg   带有重定向符号的字符串, 如">log.txt"
  * @return 返回重定向的文件描述符，没有重定向则返回-1
  */
-int redirect(char* arg)
+int redirect(char *arg)
 {
     int type = -1;
     int oldfd = -1;
@@ -44,6 +44,7 @@ int redirect(char* arg)
     if (len == 0)
         return -1;
 
+    // 创建操作副本
     strcpy(tmp_arg, arg);
 
     // 判断重定向类型
@@ -64,10 +65,11 @@ int redirect(char* arg)
         return -1;
     else
         strcpy(fileStr, tmp_arg + ptr);
+    // 文件名为空，返回-1
     if (strlen(fileStr) == 0)
         return -1;
 
-    // 执行重定向, 执行前保存标准输入输出的FILE*
+    // 执行重定向, 执行前使用dup保存标准输入输出指向的FILE
     if (type == RDT_IN) {
         oldfd = open(fileStr, O_RDWR);
         new_stdin_fd = dup(STD_IN);
@@ -97,7 +99,7 @@ int redirect(char* arg)
  * @param delimiter 分隔字符串
  * @return 返回分割出字符串的个数，不包括NULL
  */
-int split(char* res[], const char* target, const char* delimiter)
+int split(char *res[], const char *target, const char *delimiter)
 {
     int len = strlen(target);
     if (len == 0)
@@ -110,16 +112,52 @@ int split(char* res[], const char* target, const char* delimiter)
     strcpy(tmp, target);
 
     // 将输入的命令字符串分割
-    char* arg = strtok(tmp, delimiter);
+    char *arg = strtok(tmp, delimiter);
     while (arg != NULL) {
         strcpy(res[i++], arg);
         // 为什么不能直接指针赋值？因为strtok返回的是指向tmp中字符的指针，而tmp位于栈帧中，生命周期仅限于本函数，
         // 离开这个函数它的内存就消失了，指向它的指针也就成为了悬空指针
-        // res[i++] = arg;
         arg = strtok(NULL, delimiter);
     }
     res[i] = NULL;
     return i;
+}
+
+/**
+ * @brief 检查当前待执行的命令是否为内置命令，若是，执行对应命令返回1，否则返回0
+ *
+ * @param argv  待执行命令的参数数组
+ * @return int  执行了内置命令返回1，否则返回0
+ */
+int do_buildin(char *argv[])
+{
+    if (strcmp(argv[0], "pwd") == 0) {
+        char buffer[PATH_MAX];
+        char *res = getcwd(buffer, PATH_MAX);
+        if (res != NULL)
+            puts(buffer);
+        else
+            perror(argv[0]);
+
+        return 1;
+    } else if (strcmp(argv[0], "cd") == 0) {
+        int res = chdir(argv[1]);
+        // 改变目录成功
+        if (res == 0) {
+            char buffer[PATH_MAX];
+            char *res = getcwd(buffer, PATH_MAX);
+            if (res == NULL)
+                perror(argv[0]);
+            else
+                printf("Change into directory [%s].\n", res);
+        } else
+            printf("Change directory fail.\n");
+
+        return 1;
+    } else if (strcmp(argv[0], "exit") == 0)
+        exit(0);
+
+    return 0;
 }
 
 /**
@@ -129,7 +167,7 @@ int split(char* res[], const char* target, const char* delimiter)
 void sh2()
 {
     char line[MAX_LINE_LEN];
-    char* argv[MAX_STR_LEN];
+    char *argv[MAX_ARG_CNT];
     int cnt;
     int argc = 0;
     while (1) {
@@ -138,6 +176,7 @@ void sh2()
         // 读取一行命令
         cnt = read(STD_IN, line, sizeof(line));
         // 将最后一个回车覆盖
+        assert(line[cnt - 1] == '\n');
         line[--cnt] = 0;
 
         // 开辟堆内存
@@ -150,34 +189,13 @@ void sh2()
 
         argc = split(argv, line, " ");
 
+        // 执行重定向，重定向成功时，将最后一个参数置为NULL
         int oldfd = redirect(argv[argc - 1]);
-        // 重定向成功时，将最后一个参数置为NULL
         if (oldfd != -1)
             argv[argc - 1] = NULL;
 
-        // 根据输入的命令类型执行不同的操作
-        if (strcmp(argv[0], "pwd") == 0) {
-            char* wd = pwd();
-            // 释放pwd malloc的内存
-            if (wd != NULL) {
-                puts(wd);
-                free(wd);
-            }
-        } else if (strcmp(argv[0], "cd") == 0) {
-            int res = chdir(argv[1]);
-            if (res == 0) {
-                char* wd = pwd();
-                printf("Change into directory [%s].\n", wd);
-                // 释放pwd malloc的内存
-                if (wd != NULL) {
-                    puts(wd);
-                    free(wd);
-                }
-            } else
-                printf("Change directory fail.\n");
-        } else if (strcmp(argv[0], "exit") == 0)
-            exit(0);
-        else
+        // 查看是否能执行内置命令
+        if (!do_buildin(argv))
             mysys(argv);
 
         // 恢复标准输入输出
@@ -186,7 +204,6 @@ void sh2()
         new_stdin_fd = STD_IN;
         new_stdout_fd = STD_OUT;
 
-        // 关闭oldfd
         if (oldfd != -1)
             close(oldfd);
     }
@@ -196,28 +213,11 @@ void sh2()
 }
 
 /**
- * @brief 自实现的pwd命令
- *
- * @return  char* 返回一个malloc出的字符串，表明当前目录，如果程序出错返回NULL，
- *          为了防止内存泄漏要记得free
- */
-char* pwd()
-{
-    char* buffer = malloc(PATH_MAX * sizeof(char));
-    char* res = getcwd(buffer, PATH_MAX);
-    if (res == NULL) {
-        printf("Fail to get current work directory.\n");
-        return NULL;
-    }
-    return buffer;
-}
-
-/**
  * @brief 自实现的mysys函数, 实现了将命令字符串分割，并开启子进程执行传入命令的功能
  *
  * @param argv 待执行的命令字符串数组
  */
-void mysys(char* argv[])
+void mysys(char *argv[])
 {
     pid_t pid = fork();
     if (pid == 0) {
