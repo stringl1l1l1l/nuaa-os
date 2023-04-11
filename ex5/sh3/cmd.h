@@ -11,6 +11,7 @@
 // output = "log"
 
 struct cmd {
+    int flag;
     int argc;
     char *argv[MAX_ARG_CNT];
     char *input;
