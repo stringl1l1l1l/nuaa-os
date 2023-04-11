@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdlib.h>
+
 
 /**
  * @brief 解析指定命令字符串为cmd结构体
@@ -25,42 +27,58 @@ void parse_cmd(char *line, struct cmd *cmd)
 
     while(1) {
         arg = strtok((!flag) ? tmp : NULL, delimiter);
-        // 若当前分割出的字符串含重定向符号
+
         if(arg == NULL) break;
         flag = 1;
+
+        // 若当前分割出的字符串含重定向符号
         if (arg[0] == '<') {
-            if (arg[1]) // 重定向符号后紧跟文件名 '<log.txt'
+            if (arg[1]) {// 重定向符号后紧跟文件名 '<log.txt'
+                cmd->input = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
+                assert(cmd->input);
                 strcpy(cmd->input, arg + 1);
+            }
             else // 重定向符号单独成参数 '< log.txt'
             {
                 arg = strtok(NULL, delimiter);
                 assert(arg);
+                cmd->input = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
+                assert(cmd->input);
                 strcpy(cmd->input, arg);
             }
 
-        } else if (arg[0] == '>' && arg[1] == '>') {
-            if (arg[2])
+        } else if (arg[1] && arg[0] == '>' && arg[1] == '>') {
+            if (arg[2]){
                 strcpy(cmd->output, arg + 2);
+            }
             else {
                 arg = strtok(NULL, delimiter);
                 assert(arg);
                 strcpy(cmd->output, arg);
             };
+            cmd->flag = FLAG_OUT_ADD;
 
         } else if (arg[0] == '>') {
-            if (arg[1])
+            if (arg[1]){
                 strcpy(cmd->output, arg + 1);
+            }
             else {
                 arg = strtok(NULL, delimiter);
                 assert(arg);
                 strcpy(cmd->output, arg);
             };
+            cmd->flag = FLAG_OUT_RWRT;
 
-        } else
-            strcpy(cmd->argv[cnt++], arg); // 深拷贝
+        } else {
+
+            cmd->input[0] = 0;
+            cmd->output[0] = 0;
+            strcpy(cmd->argv[cnt++], arg);
+            cmd->flag = 0;
+        }// 深拷贝
     };
-
-    cmd->argv[cnt] = NULL;
+    free(cmd->argv[cnt]);
+    cmd->argv[cnt] = NULL; // attention: necessary
     cmd->argc = cnt;
 }
 /**
@@ -80,14 +98,14 @@ void dump_cmd(struct cmd *cmd)
         else
             printf("\"%s\"}\n", cmd->argv[i]);
     }
-    printf("input = \"%s\"\n", (cmd->input && cmd->input[0]) ? cmd->input : "NULL");
-    printf("output = \"%s\"\n", (cmd->output && cmd->output[0]) ? cmd->output : "NULL");
+    printf("input = %s\n", (cmd->input && cmd->input[0]) ? cmd->input : "NULL");
+    printf("output = %s\n", (cmd->output && cmd->output[0]) ? cmd->output : "NULL");
+    printf("flag = %d\n", cmd->flag);
 }
-
 /**
  * @brief
  *
- * @param line
+ * @param line the command containing pipe
  * @param cmdv
  * @return int
  */
@@ -110,8 +128,9 @@ int parse_pipe_cmd(char *line, struct cmd *cmdv)
         cmd = strtok(NULL, "|");
     };
 
-    for(int i = 0; i < cmdc; i++)
+    for(int i = 0; i < cmdc; i++) {
         parse_cmd(cmdlist[i], &cmdv[i]);
+    }
 
     return cmdc;
 }
@@ -119,29 +138,28 @@ int parse_pipe_cmd(char *line, struct cmd *cmdv)
 void dump_pipe_cmd(int cmdc, struct cmd *cmdv)
 {
     int i;
-    printf("pipe cmd, cmdc = %d\n", cmdc);
-    puts("____________________");
+    // printf("pipe cmd, cmdc = %d\n", cmdc);
+    puts("____________________\n");
     for (i = 0; i < cmdc; i++) {
         struct cmd *cmd = cmdv + i;
         dump_cmd(cmd);
-    puts("____________________");
+    puts("____________________\n");
     }
 }
 
-// int main()
-// {
-//     struct cmd cmdv[MAX_CMD_CNT];
-//     char line[MAX_LINE_LEN] = { 0 };
+void test()
+{
+    struct cmd cmdv[MAX_CMD_CNT];
+    char line[MAX_LINE_LEN] = { 0 };
+    for (int i = 0; i < MAX_CMD_CNT; i++) {
+        cmdv[i].input = NULL;
+        cmdv[i].output = NULL;
+        for (int j = 0; j < MAX_ARG_CNT; j++)
+            cmdv[i].argv[j] = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
+    }
 
-//     for (int i = 0; i < MAX_CMD_CNT; i++) {
-//         cmdv[i].input = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
-//         cmdv[i].output = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
-//         for (int j = 0; j < MAX_ARG_CNT; j++)
-//             cmdv[i].argv[j] = (char *)malloc(sizeof(char) * MAX_ARG_LEN);
-//     }
-
-//     int cnt = read(STD_IN, line, MAX_LINE_LEN * sizeof(char));
-//     line[cnt - 1] = 0;
-//     int cmdc = parse_pipe_cmd(line, cmdv);
-//     dump_pipe_cmd(cmdc, cmdv);
-// }
+    int cnt = read(STD_IN, line, MAX_LINE_LEN * sizeof(char));
+    line[cnt - 1] = 0;
+    int cmdc = parse_pipe_cmd(line, cmdv);
+    dump_pipe_cmd(cmdc, cmdv);
+}
