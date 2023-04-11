@@ -20,22 +20,24 @@ void exec_cmd(struct cmd *cmd)
     if(pid == 0) {
         if (cmd->input && cmd->input[0]) {
             int fd_in = open(cmd->input, O_RDWR);
-            new_std_in = dup(STD_IN);
+            close(STD_IN);
             dup2(fd_in, STD_IN);
+            close(fd_in);
         }
 
         if (cmd->output && cmd->output[0]) {
             assert(cmd->flag & 3);
 
             int fd_out = -1;
-            new_std_out = dup(STD_OUT);
             if(cmd->flag == FLAG_OUT_ADD)
                 fd_out = open(cmd->output, O_TRUNC | O_APPEND | O_CREAT, 0777);
             else
                 fd_out = open(cmd->output, O_TRUNC | O_RDWR | O_CREAT, 0777);
 
             assert(fd_out != -1);
+            close(STD_OUT);
             dup2(fd_out, STD_OUT);
+            close(fd_out);
         }
 
         int res = execvp(cmd->argv[0], cmd->argv);
@@ -47,11 +49,7 @@ void exec_cmd(struct cmd *cmd)
     }
     else {
         int status = -1;
-        puts("waiting...");
         wait(&status);
-        close(STD_OUT);
-        close(STD_IN);
-        puts("come to parent process");
     }
 }
 
@@ -96,18 +94,29 @@ void exec_pipe_cmd(int cmdc, struct cmd *cmdv)
     // exec_pipe_cmd(cmdc -1, cmdv);
     // dup2(fd[0], STD_IN);
     // exec_cmd(&cmdv[cmdc - 1]);
-    for(int i = 0; i < cmdc; i++) {
-        dup2(fd[1], STD_OUT);
-        dup2(fd[0], STD_IN);
+    new_std_out = dup(STD_OUT);
+    new_std_in = dup(STD_IN);
 
-        if (i == cmdc - 1)
+    dup2(fd[1], STD_OUT);
+    close(fd[1]);
+    if (!builtin_cmd(&cmdv[0]))
+        exec_cmd(&cmdv[0]);
+    dup2(fd[0], STD_IN);
+    close(fd[0]);
+    
+    for(int i = 1; i < cmdc; i++) {
+        if (i == cmdc - 1) {
+            close(STD_OUT);
             dup2(new_std_out, STD_OUT);
-        if (i == 0)
-            dup2(new_std_in, STD_IN);
+        }
 
         if (!builtin_cmd(&cmdv[i]))
                 exec_cmd(&cmdv[i]);
     }
-    close(fd[0]);
-    close(fd[1]);
+    close(STD_IN);
+    close(STD_OUT);
+    dup2(new_std_out, STD_OUT);
+    dup2(new_std_in, STD_IN);
+    close(new_std_in);
+    close(new_std_out);
 }
