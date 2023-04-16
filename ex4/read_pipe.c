@@ -72,6 +72,8 @@ void read_pipe(char* command)
         close(red);
         // 重定向标准输出到管道写端
         dup2(wrt, STD_OUT);
+        // 及时关闭无用的管道写口
+        close(wrt);
         // 分割命令字符串并执行
         split(argv, command, " ");
         execvp(argv[0], argv);
