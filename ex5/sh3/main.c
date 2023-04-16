@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <sys/wait.h>
 #include <unistd.h>
-extern int fd[];
 
 void initStruct(struct cmd *cmdv)
 {
@@ -40,10 +39,9 @@ int main()
         int cnt = read(STD_IN, line, MAX_LINE_LEN * sizeof(char)); // read command line
         line[cnt - 1] = 0;// erase the tail '\n'
         int cmdc = parse_pipe_cmd(line, cmdv);
-        dump_pipe_cmd(cmdc, cmdv);
+        // dump_pipe_cmd(cmdc, cmdv);
 
         if(cmdc > 1) {
-            pipe(fd);
             exec_pipe_cmd(cmdc, cmdv);
         }
         else {

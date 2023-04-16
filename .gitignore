@@ -1,11 +1,9 @@
 **/*.o
 **/*.out
-test
 **/*.txt
 nuaa-os
 **/*.tgz
 **/*.gch
 strtok
-test
 .clang-format
 **/*.fuse_hidden*
