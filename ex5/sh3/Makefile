@@ -1,14 +1,18 @@
-all: cmd.o parse.o main.o
-	gcc -g -o sh3 cmd.o parse.o main.o
+OBJS=main.o cmd.o parse.o
 
-parse.o: parse.c parse.h define.h cmd.h
-	gcc -g -c parse.c
+all: $(OBJS)
+	gcc -g -o sh3 $(OBJS)
 
-cmd.o: cmd.c cmd.h define.h
-	gcc -g -c cmd.c
+# %  模式
+# $< 规则的第一个依赖文件	这里是%.c
+# $@ 规则的目标文件  	   这里是%.o
+# $^ 规则的所有依赖文件    这里包括%.c和它依赖的.h文件
+# -c表明只编译不链接, 如果用-o %.c 是编译并链接
+%.o: %.c
+	gcc -g -c $< -o $@
 
-main.o: main.c cmd.h define.h parse.h
-	gcc -g -c main.c
+# 引入依赖关系
+include Makefile.dep
 
 clean:
-	rm -rf sh3 ./*.o
+	rm -f sh3 ./*.o
