@@ -10,7 +10,6 @@
 
 extern int new_std_in;
 extern int new_std_out;
-int fd[2] = {-1, -1};
 
 void exec_cmd(struct cmd *cmd)
 {
@@ -30,7 +29,7 @@ void exec_cmd(struct cmd *cmd)
 
             int fd_out = -1;
             if(cmd->flag == FLAG_OUT_ADD)
-                fd_out = open(cmd->output, O_TRUNC | O_APPEND | O_CREAT, 0777);
+                fd_out = open(cmd->output, O_RDWR | O_APPEND | O_CREAT, 0777);
             else
                 fd_out = open(cmd->output, O_TRUNC | O_RDWR | O_CREAT, 0777);
 
@@ -48,8 +47,7 @@ void exec_cmd(struct cmd *cmd)
         exit(0);
     }
     else {
-        int status = -1;
-        wait(&status);
+        wait(NULL);
     }
 }
 
@@ -57,12 +55,11 @@ int builtin_cmd(struct cmd *cmd)
 {
     char *cmd_name = cmd->argv[0];
     int flag = 1;
-
     if (!strcmp(cmd_name, "pwd")) {
         char buffer[PATH_MAX] = {0};
         char *res = getcwd(buffer, PATH_MAX);
         assert(res);
-        write(STD_OUT, buffer, PATH_MAX);
+        write(STD_OUT, buffer, strlen(buffer));
     }
     else if (!strcmp(cmd_name, "cd")) {
         assert(cmd->argv[1]);
@@ -71,41 +68,44 @@ int builtin_cmd(struct cmd *cmd)
             char buffer[PATH_MAX] = {0};
             char *res = getcwd(buffer, PATH_MAX);
             assert(res);
-            write(STD_OUT, buffer, PATH_MAX);
+            write(STD_OUT, buffer, strlen(buffer));
         }
     }
     else if (!strcmp(cmd_name, "exit")) {
         exit(EXIT_SUCCESS);
     }
-    else
-        flag = 0;
+    else flag = 0;
 
     return flag;
 }
 
 void exec_pipe_cmd(int cmdc, struct cmd *cmdv)
 {
-    // if (cmdc == 1) {
-    //     exec_cmd(&cmdv[0]);
-    //     return;
-    // }
-
-    // dup2(fd[1], STD_OUT);
-    // exec_pipe_cmd(cmdc -1, cmdv);
-    // dup2(fd[0], STD_IN);
-    // exec_cmd(&cmdv[cmdc - 1]);
     new_std_out = dup(STD_OUT);
     new_std_in = dup(STD_IN);
 
+    int fd[2] = {-1, -1};
+    pipe(fd);
+
+    // last pipe read port is the next STD_IN
+    // STD_OUT is the next pipe write port
     dup2(fd[1], STD_OUT);
     close(fd[1]);
     if (!builtin_cmd(&cmdv[0]))
         exec_cmd(&cmdv[0]);
-    dup2(fd[0], STD_IN);
-    close(fd[0]);
-    
+
     for(int i = 1; i < cmdc; i++) {
+        close(STD_IN);
+        dup2(fd[0], STD_IN);
+        close(fd[0]);
+
+        pipe(fd);
+        close(STD_OUT);
+        dup2(fd[1], STD_OUT);
+        close(fd[1]);
+
         if (i == cmdc - 1) {
+            close(fd[0]);
             close(STD_OUT);
             dup2(new_std_out, STD_OUT);
         }
@@ -113,6 +113,7 @@ void exec_pipe_cmd(int cmdc, struct cmd *cmdv)
         if (!builtin_cmd(&cmdv[i]))
                 exec_cmd(&cmdv[i]);
     }
+
     close(STD_IN);
     close(STD_OUT);
     dup2(new_std_out, STD_OUT);
