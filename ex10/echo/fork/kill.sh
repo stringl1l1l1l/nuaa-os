@@ -1,0 +1,1 @@
+lsof -i | grep ^server | awk '{print $2}' | xargs -I {} kill -9 {}

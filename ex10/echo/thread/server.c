@@ -1,4 +1,5 @@
 #include "echo.h"
+#include <pthread.h>
 
 int create_server(char *ip_address, int port)
 {
@@ -40,6 +41,15 @@ void echo_handler(int fd)
     close(fd);
 }
 
+void *handle_thread(void *args)
+{
+    int *client_fd = (int*)args;
+    puts("sleep 2 seconds");
+    sleep(2);
+    echo_handler(*client_fd);
+    return NULL;
+}
+
 void run_echo_server(char *ip_address, int port)
 {
     int server_fd = create_server(ip_address, port);
@@ -52,9 +62,9 @@ void run_echo_server(char *ip_address, int port)
         client_fd = accept(server_fd, (struct sockaddr *)&client, &length);
         if (client_fd < 0)
             error("accept");
-        printf("accept client\n");
-
-        echo_handler(client_fd);
+        printf("accept client, client port: %d\n", client.sin_port);
+        pthread_t client_tid;
+        pthread_create(&client_tid, NULL, handle_thread, (void *)&client_fd);
     }
 }
 
