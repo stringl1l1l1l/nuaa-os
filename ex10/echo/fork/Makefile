@@ -9,4 +9,10 @@ clean:
 	rm -f server client
 
 kill:
-	sudo pkill -9 httpd
+	pkill -9 server
+
+run:
+	./server&
+	./client aaa&
+	./client bbb&
+	./client ccc&

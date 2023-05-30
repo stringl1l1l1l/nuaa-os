@@ -22,5 +22,12 @@ int main(int argc, char *argv[])
         }
     }
 
+    // 打开服务器，持续监听客户端请求
+    int server_fd = tcp_listen(ip_address, port);
+    while (1) {
+        int client_fd = tcp_accept(server_fd);
+        http_handler(client_fd);
+        close(client_fd);
+    }
     return 0;
 }

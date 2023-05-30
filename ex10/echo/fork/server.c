@@ -40,21 +40,33 @@ void echo_handler(int fd)
     close(fd);
 }
 
+/**
+ * @brief 运行服务端，持续监听指定ip的端口，若监听到连接，则开启一个子进程处理之
+ *
+ * @param ip_address
+ * @param port
+ */
 void run_echo_server(char *ip_address, int port)
 {
+
     int server_fd = create_server(ip_address, port);
     while (1) {
         struct sockaddr_in client;
         socklen_t length = sizeof(struct sockaddr_in);
-        int client_fd;
+
         // server will create a client socket when accepting a request
         // this function will be blocked until there is a request
-        client_fd = accept(server_fd, (struct sockaddr *)&client, &length);
+        int client_fd = accept(server_fd, (struct sockaddr *)&client, &length);
         if (client_fd < 0)
             error("accept");
-        printf("accept client\n");
 
-        echo_handler(client_fd);
+        printf("accept client, client port: %d\n", client.sin_port);
+        pid_t pid = fork();
+        if(pid == 0) {
+            printf("sleep 3 seconds\n");
+            sleep(3);
+            echo_handler(client_fd);
+        }
     }
 }
 
