@@ -193,11 +193,12 @@ void dir_handler(FILE* fw, char *path)
             http_printf(fw, "<a href=\"%s\">/%s</a><br>", newPath, entry->d_name);
         }
     }
-    http_end(fw);
+  
     http_prints(fw, "<ol>");
     http_prints(fw, "<body>");
     http_prints(fw, "<html>");
-
+    http_end(fw);
+    
     closedir(dir);
 }
 
@@ -211,6 +212,11 @@ void http_handler(int fd)
     http_path = http_parse_req(fr, req, sizeof(req));
     puts(http_path);
 
+    // 若请求根路径，返回index.html
+    if(strcmp(http_path, "/") == 0) {
+        strcat(http_path, "index.html");
+    }
+    
     // sizeof 对一个堆内存中的字符指针作用时，只返回一个指针的大小
     char * path_with_root = (char *) malloc(MAX_REQ_SIZE);
     strcpy(path_with_root, web_root);
