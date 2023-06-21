@@ -58,7 +58,6 @@ int main(int argc, char* argv[])
             if (!builtin_cmd(&cmdv[0]))
                 exec_cmd(&cmdv[0]);
         }
-        puts("");
         deleteStruct(cmdv);
     }
     return 0;

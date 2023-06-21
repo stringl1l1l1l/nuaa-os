@@ -46,7 +46,6 @@ void utest_add(char* desc, void (*fp)())
     utest->desc = strdup(desc);
     utest->fp = fp;
     utest_count++;
-    utest_log = open("utest.log", O_CREAT | O_APPEND | O_RDWR, 0777);
 }
 
 /**
@@ -75,28 +74,62 @@ void utest_parse_args(int argc, char* argv[], char* target_arg, void (*fp)())
  */
 void utest_exec(utest_t* utest)
 {
-    // 重定向标准错误到日志文件
-    dup2(utest_log, 2);
-    utest->fp();
+    printf("%03d: %-25s", utest->id, utest->desc);
+    fflush(stdout);
+    pid_t pid = fork();
+    if (pid == 0) { 
+        // 重定向标准错误和标准输出到日志文件
+        // dup2(utest_log, 1);
+        dup2(utest_log, 2);
+        close(utest_log);
+        
+        alarm(1);
+        utest->fp();
+        exit(EXIT_SUCCESS);
+    }
+    
+    utest->ok = 0;
+    int status = -1;
+    int error = waitpid(pid, &status, 0);
+    
+    char *color_on = "\033[0;31m", *color_off = "\033[0m";
+    char *result = "×";
+    
+    // 若没有出现任何错误，即子进程正常退出时：
+    if (error > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+       utest->ok = 1;
+       color_on = "\033[0;32m";
+       result = "√";
+    }
+    printf("\t%s%s%s\n", color_on, result, color_off);
 }
 
 void utest_run(void)
 {
-    for (int i = 0; i < utest_count; i++) {
-        pid_t pid = fork();
-        if (pid == 0) {
-            // alarm(3);
-            utest_exec(&utest_array[i]);
-            exit(0);
-        }
-        int status = -1;
-        int error = waitpid(pid, &status, 0);
-        if (error > 0 && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
-            printf("%03d: %25s", utest_array[i].id, utest_array[i].desc);
-            printf("\t%s\n", "\033[0;32m√\033[0m");
-        } else {
-            printf("%03d: %25s", utest_array[i].id, utest_array[i].desc);
-            printf("\t%s\n", "\033[0;31m×\033[0m");
-        }
+    utest_log = open("utest.log", O_CREAT | O_APPEND | O_RDWR, 0777);
+    if(utest_log < 0) {
+        perror("open");
+        puts("open utest.log failed");
+        exit(EXIT_FAILURE);
     }
+    
+    int pass_all_test = 1;
+    for (int i = 0; i < utest_count; i++) {
+        utest_exec(&utest_array[i]);
+        if(utest_array[i].ok == 0) 
+            pass_all_test = 0;
+    }
+    
+    puts("");
+    if(pass_all_test) {
+        puts("Pass all the test.");
+        return;
+    }
+    
+    puts("The following test failed:");
+    for (int i = 0; i < utest_count; i++) {
+        if(utest_array[i].ok == 0) 
+            printf("%03d: %-25s\n", utest_array[i].id, utest_array[i].desc);
+    }
+    puts("See utest.log for details");
 }

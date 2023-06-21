@@ -1,0 +1,6 @@
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.
+sh4: parse.c:249: test_error: Assertion `1 != 1' failed.

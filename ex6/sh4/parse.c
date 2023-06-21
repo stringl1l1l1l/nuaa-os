@@ -115,20 +115,18 @@ int parse_pipe_cmd(char* line, struct cmd* cmdv)
     int cmdc = 0;
     char* cmd = NULL;
     char tmp[MAX_LINE_LEN] = { 0 };
-    char* cmdlist[MAX_CMD_CNT] = { 0 };
+    char *save;
 
     strcpy(tmp, line);
 
     // strtok cannot be used nestedly, containing static var
-    cmd = strtok(tmp, "|");
+    // 使用线程安全版的strtok_r，会从save所指向的字符串开始拆分
+    cmd = strtok_r(tmp, "|", &save);
     while (cmd != NULL) {
-        cmdlist[cmdc++] = cmd;
-        cmd = strtok(NULL, "|");
+        parse_cmd(cmd, cmdv + cmdc);
+        cmd = strtok_r(NULL, "|", &save);
+        cmdc++;
     };
-
-    for (int i = 0; i < cmdc; i++) {
-        parse_cmd(cmdlist[i], &cmdv[i]);
-    }
 
     return cmdc;
 }
@@ -247,10 +245,20 @@ void test_parse_pipe_cmd_2()
     assert(strcmp(cmdv[2].output, (char*)"output") == 0);
 }
 
+void test_error() {
+    assert(1 != 1);
+}
+
+void test_loop() {
+    while(1);
+}
+
 void parse_utest_add()
 {
     UTEST_ADD(test_parse_cmd_1);
     UTEST_ADD(test_parse_cmd_2);
     UTEST_ADD(test_parse_pipe_cmd_1);
     UTEST_ADD(test_parse_pipe_cmd_2);
+    UTEST_ADD(test_error);
+    UTEST_ADD(test_loop);
 }
