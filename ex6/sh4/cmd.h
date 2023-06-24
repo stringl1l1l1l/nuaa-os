@@ -11,19 +11,14 @@
 // output = "log"
 
 struct cmd {
-    int flag;
     int argc;
-    char* argv[MAX_ARG_CNT];
-    char* input;
-    char* output;
+    char *argv[MAX_ARG_CNT];
+    char *input;
+    char *output;
 };
 
-extern void exec_cmd(struct cmd* cmd);
-extern int builtin_cmd(struct cmd* cmd);
-extern void exec_pipe_cmd(int cmdc, struct cmd* cmdv);
-
-extern void test_exec_cmd();
-extern void test_exec_pipe_cmd();
-extern void cmd_utest_add();
+extern void exec_cmd(struct cmd *cmd);
+extern int builtin_cmd(struct cmd *cmd);
+extern void exec_pipe_cmd(int cmdc, struct cmd *cmdv);
 
 #endif

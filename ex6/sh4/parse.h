@@ -3,12 +3,7 @@
 
 #include "cmd.h"
 
-extern int parse_pipe_cmd(char* line, struct cmd* cmdv);
-extern void dump_pipe_cmd(int cmdc, struct cmd* cmdv);
+extern int parse_pipe_cmd(char *line, struct cmd *cmdv);
+extern void dump_pipe_cmd(int cmdc, struct cmd *cmdv);
 
-extern void test_parse_cmd_1();
-extern void test_parse_cmd_2();
-extern void test_parse_pipe_cmd_1();
-extern void test_parse_pipe_cmd_2();
-extern void parse_utest_add();
 #endif
