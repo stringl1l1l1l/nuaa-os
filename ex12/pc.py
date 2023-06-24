@@ -7,13 +7,12 @@ def worker():
     for letter in data:
         customer_gr.switch(letter)
            
-def customer(arg):
-    letter = arg
+def customer():
     while 1:
-        print(letter)
-        letter =  worker_gr.switch()      
+        letter =  worker_gr.switch()
+        print(letter)     
     
 worker_gr = greenlet(worker)
 customer_gr = greenlet(customer)
 
-worker_gr.switch()
+customer_gr.switch()

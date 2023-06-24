@@ -9,7 +9,7 @@ all: $(OBJS)
 # $^ 规则的所有依赖文件    这里包括%.c和它依赖的.h文件
 # -c表明只编译不链接, 如果用-o %.c 是编译并链接
 %.o: %.c
-	gcc -g $< -o $@
+	gcc -lpthread -g $< -o $@
 
 clean:
 	rm -f ./*.out ./*.o

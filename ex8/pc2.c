@@ -13,50 +13,92 @@
 #include <unistd.h>
 
 #define CAPACITY 4
-#define BUFFER1 0
-#define BUFFER2 1
 
+/********信号量相关定义********/
+typedef struct {
+    int value;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+} sema_t;
+
+/**
+ * @brief 信号量初始化
+ *
+ * @param sema 信号量数据结构
+ * @param value 信号量的初始值
+ */
+void sema_init(sema_t *sema, int value)
+{
+    sema->value = value;
+    pthread_mutex_init(&sema->mutex, NULL);
+    pthread_cond_init(&sema->cond, NULL);
+}
+
+/**
+ * @brief 如果信号量的值 <= 0，则等待条件变量，并将信号量的值-1
+ *
+ * @param sema 信号量数据结构
+ */
+void sema_wait(sema_t *sema)
+{
+    pthread_mutex_lock(&sema->mutex);
+    while (sema->value <= 0)
+        pthread_cond_wait(&sema->cond, &sema->mutex);
+    sema->value--;
+    pthread_mutex_unlock(&sema->mutex);
+}
+
+/**
+ * @brief 将信号量的值+1, 并唤醒等待条件变量的线程
+ *
+ * @param sema 信号量数据结构
+ */
+void sema_signal(sema_t *sema)
+{
+    pthread_mutex_lock(&sema->mutex);
+    ++sema->value;
+    pthread_cond_signal(&sema->cond);
+    pthread_mutex_unlock(&sema->mutex);
+}
+/********信号量相关定义********/
 typedef struct
 {
-    int buffer[CAPACITY];
+    int data[CAPACITY];
     int in;
     int out;
+    sema_t full;
+    sema_t empty;
 } Buffer;
 
 Buffer buffers[2];
 
-int buffer_is_empty(int index)
-{
-    return buffers[index].in == buffers[index].out;
+void buffer_init(Buffer *buffer) {
+    buffer->out = 0;
+    buffer->in = 0;
+    sema_init(&buffer->full, 0);
+    sema_init(&buffer->empty, CAPACITY);
 }
 
-int buffer_is_full(int index)
+int buffer_get_item(Buffer *buffer)
 {
-    return (buffers[index].in + 1) % CAPACITY == buffers[index].out;
-}
-
-int get_item(int index)
-{
-    int item;
-    Buffer *curBuf = &buffers[index];
-    item = curBuf->buffer[curBuf->out];
-    curBuf->out = (curBuf->out + 1) % CAPACITY;
+    sema_wait(&buffer->full);
+    
+    int item = buffer->data[buffer->out];
+    buffer->out = (buffer->out + 1) % CAPACITY;
+    
+    sema_signal(&buffer->empty);
     return item;
 }
 
-void put_item(int item, int index)
+void buffer_put_item(Buffer *buffer, int item)
 {
-    Buffer *curBuf = &buffers[index];
-    curBuf->buffer[curBuf->in] = item;
-    curBuf->in = (curBuf->in + 1) % CAPACITY;
+    sema_wait(&buffer->empty);
+        
+    buffer->data[buffer->in] = item;
+    buffer->in = (buffer->in + 1) % CAPACITY;
+    
+    sema_signal(&buffer->full);
 }
-
-pthread_mutex_t mutex1;
-pthread_mutex_t mutex2;
-pthread_cond_t wait_empty_buffer1;
-pthread_cond_t wait_full_buffer1;
-pthread_cond_t wait_empty_buffer2;
-pthread_cond_t wait_full_buffer2;
 
 #define ITEM_COUNT (CAPACITY * 2)
 
@@ -66,19 +108,9 @@ pthread_cond_t wait_full_buffer2;
  */
 void* consume(void* arg)
 {
-    int i;
-    int item;
-
-    for (i = 0; i < ITEM_COUNT; i++) {
-        pthread_mutex_lock(&mutex2);
-        while (buffer_is_empty(BUFFER2))
-            pthread_cond_wait(&wait_full_buffer2, &mutex2);
-
-        item = get_item(BUFFER2); // 消费一个数据
-        printf("\t\tconsume item: %c\n", item);
-
-        pthread_cond_signal(&wait_empty_buffer2);
-        pthread_mutex_unlock(&mutex2);
+    for(int i = 0; i < ITEM_COUNT; i++) {
+        int item = buffer_get_item(&buffers[1]);
+        printf("\t\tconsume item: %c\n", item); 
     }
     return NULL;
 }
@@ -89,48 +121,22 @@ void* consume(void* arg)
  */
 void* produce(void* arg)
 {
-    int i;
-    int item;
-
-    for (i = 0; i < ITEM_COUNT; i++) {
-        pthread_mutex_lock(&mutex1);
-        while (buffer_is_full(BUFFER1))
-            pthread_cond_wait(&wait_empty_buffer1, &mutex1);
-
-        item = 'a' + i;
-        put_item(item, BUFFER1);
+    for (int i = 0; i < ITEM_COUNT; i++) {
+        int item = i + 'a'; 
+        buffer_put_item(&buffers[0], item);
         printf("produce item: %c\n", item);
-
-        pthread_cond_signal(&wait_full_buffer1);
-        pthread_mutex_unlock(&mutex1);
     }
     return NULL;
 }
 
 void *calculate(void *arg)
 {
-    char item;
     for (int i = 0; i < ITEM_COUNT; i++) {
-        // 从buffer1中读取一个数据
-        pthread_mutex_lock(&mutex1);
-        pthread_mutex_lock(&mutex2);
-        while (buffer_is_empty(BUFFER1))
-            pthread_cond_wait(&wait_full_buffer1, &mutex1);
-        item = get_item(BUFFER1);
-
-        pthread_cond_signal(&wait_empty_buffer1);
-
-        // 向buffer2中写一个数据
-        while (buffer_is_full(BUFFER2))
-            pthread_cond_wait(&wait_empty_buffer2, &mutex2);
-
+        int item = buffer_get_item(&buffers[0]);
         item += 'A' - 'a';
-        put_item(item, BUFFER2);
-        printf("\tcalulate item: %c\n", item);
-
-        pthread_cond_signal(&wait_full_buffer2);
-        pthread_mutex_unlock(&mutex1);
-        pthread_mutex_unlock(&mutex2);
+        
+        buffer_put_item(&buffers[1], item);
+        printf("\tcalculate item: %c\n", item);
     }
     return NULL;
 }
@@ -141,17 +147,17 @@ int main()
     pthread_t calculater_tid;
     pthread_t producer_tid;
 
-    pthread_mutex_init(&mutex1, NULL);
-    pthread_cond_init(&wait_empty_buffer1, NULL);
-    pthread_cond_init(&wait_full_buffer1, NULL);
-    pthread_mutex_init(&mutex2, NULL);
-    pthread_cond_init(&wait_empty_buffer2, NULL);
-    pthread_cond_init(&wait_full_buffer2, NULL);
-
-    pthread_create(&consumer_tid, NULL, consume, NULL);
+    for(int i = 0; i < 2; i++) 
+        buffer_init(&buffers[i]);
+    
     pthread_create(&calculater_tid, NULL, calculate, NULL);
+    pthread_create(&consumer_tid, NULL, consume, NULL);
     pthread_create(&producer_tid, NULL, produce, NULL);
-
+    
+    pthread_join(producer_tid, NULL);
+    pthread_join(calculater_tid, NULL);
     pthread_join(consumer_tid, NULL);
+    
+    
     return 0;
 }

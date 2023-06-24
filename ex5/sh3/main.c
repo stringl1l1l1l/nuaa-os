@@ -41,14 +41,12 @@ int main()
         int cmdc = parse_pipe_cmd(line, cmdv);
         // dump_pipe_cmd(cmdc, cmdv);
 
-        if(cmdc > 1) {
+        if(cmdc > 1)
             exec_pipe_cmd(cmdc, cmdv);
-        }
         else {
             if(!builtin_cmd(&cmdv[0]))
                 exec_cmd(&cmdv[0]);
         }
-        puts("");
         deleteStruct(cmdv);
     }
     return 0;

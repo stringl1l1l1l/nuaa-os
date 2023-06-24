@@ -15,8 +15,7 @@
 void find_file(char *path, char *target)
 {
     FILE *file = fopen(path, "r");
-    if(file == NULL)
-    {
+    if(file == NULL) {
         perror(path);
         return;
     }
@@ -39,30 +38,23 @@ void find_dir(char *path, char *target)
     }
     struct dirent *entry;
     // readdir用于读取目录所有项，成功读取则返回下一个入口点，否则返回NULL
-    while (entry = readdir(dir)) {
+    while ((entry = readdir(dir))) {
         if (strcmp(entry->d_name, ".") == 0)
             continue;
 
         if (strcmp(entry->d_name, "..") == 0)
             continue;
 
+        char newPath[256];
+        sprintf(newPath, "%s/%s", path, entry->d_name);
+        
         if (entry->d_type == DT_DIR) {
             // printf("dir  %s\n", entry->d_name);
-
-            char newPath[256] = {0};
-            strcpy(newPath, path);
-            strcat(newPath, "/");
-            strcat(newPath, entry->d_name);
             find_dir(newPath, target);
         }
 
         if (entry->d_type == DT_REG) {
             // printf("file %s\n", entry->d_name);
-
-            char newPath[256] = {0};
-            strcpy(newPath, path);
-            strcat(newPath, "/");
-            strcat(newPath, entry->d_name);
             find_file(newPath, target);
         }
     }

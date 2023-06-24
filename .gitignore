@@ -7,3 +7,5 @@ nuaa-os
 strtok
 .clang-format
 **/*.fuse_hidden*
+
+**/core
