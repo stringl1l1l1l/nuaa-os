@@ -103,7 +103,7 @@ void add_norm_task(TaskQueue *tq, char *path, char *target) {
 
 void add_end_task(TaskQueue *tq) {
     Task newTask;
-    newTask.is_end = 0;
+    newTask.is_end = 1;
     strcpy(newTask.path, "");
     strcpy(newTask.string, "");
     put_item(&taskqueue, newTask);
@@ -192,13 +192,13 @@ int main(int argc, char *argv[])
     struct stat info;
     stat(path, &info);
 
-    if (S_ISDIR(info.st_mode)) {
+    if (S_ISDIR(info.st_mode))
         find_dir(path, string);
-        for(int i = 0; i < WORKER_NUMBER; i++)
-            add_end_task(&taskqueue);
-    }
     else
         find_file(path, string);
+
+    for(int i = 0; i < WORKER_NUMBER; i++)
+            add_end_task(&taskqueue);
 
     for(int i = 0; i < WORKER_NUMBER; i++)
         pthread_join(thread_pool[i], NULL);
